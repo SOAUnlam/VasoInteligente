@@ -19,13 +19,15 @@ public class ActivityDos extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_dos);
         txtResultado = (TextView)findViewById(R.id.txtResultado);
+        /*
 
-        bundle = getIntent().getExtras();
         String peso = bundle.getString("peso");
         String estatura = bundle.getString("estatura");
         String sexo = bundle.getString("sexo");
-
-        txtResultado.append("PESO: " + peso + " ESTATURA: " + estatura + " SEXO: " + sexo );
+*/
+        bundle = getIntent().getExtras();
+        String resultado = bundle.getString("RESULTADO");
+        txtResultado.append("GRADUACION: " + resultado);
 
     }
 

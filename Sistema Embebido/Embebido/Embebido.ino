@@ -2,6 +2,9 @@
 #include <LiquidCrystal_I2C.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
+#include <SoftwareSerial.h> 
+ 
+SoftwareSerial ModBluetooth(4, 5); // RX | TX 
  
 /*SENSOR DE TEMPERATURA */
 const int pinDatosDQ = 9;
@@ -27,6 +30,22 @@ float diametro, area, radio, volumen,distancia_sensor_liquido,altura_liquido;
 /*VARIABLES MQ3*/
 float Peso = 75;
 
+String getStringDelimitar(String data, char separator, int index)
+{
+  int found = 0;
+  int strIndex[] = {0, -1};
+  int maxIndex = data.length()-1;
+
+  for(int i=0; i<=maxIndex && found<=index; i++){
+    if(data.charAt(i)==separator || i==maxIndex){
+        found++;
+        strIndex[0] = strIndex[1]+1;
+        strIndex[1] = (i == maxIndex) ? i+1 : i;
+    }
+  }
+
+  return found>index ? data.substring(strIndex[0], strIndex[1]) : "";
+}
 
 float volumenLiquido()
 {
@@ -74,7 +93,10 @@ void setup()
 {
   Serial.begin(9600);
   
-  
+  /* INICIO EL MODULO BLUETOOTH*/
+  ModBluetooth.begin(9600); 
+     
+    
   /*CONFIGURAR PINES DE ENTRADA Y SALIDA*/
   pinMode(PinEcho, INPUT);
   pinMode(PinTrigger, OUTPUT);
@@ -108,14 +130,27 @@ float temperaturaLiquido()
 void loop() 
 {
   
-   /*PIN ENTRADA SWITCH ENCENDIDO*/
-  pinMode(2, INPUT);
-  SensorReed = digitalRead(2);
-  lcd.clear();
-  
-  if (SensorReed == HIGH)
-  {
-     
+       /*PIN ENTRADA SWITCH ENCENDIDO*/
+      pinMode(2, INPUT);
+      SensorReed = digitalRead(2);
+       
+      lcd.clear();
+      
+      /*PARAMETROS BLUETOOTH*/
+      String Parametros  = ""; 
+      while (ModBluetooth.available())
+      {
+        Parametros += (char)ModBluetooth.read();
+      }
+    
+    
+   
+     if (Parametros != "")  
+     { 
+        
+        String Sexo = getStringDelimitar(Parametros,';',0);
+        Peso = getStringDelimitar(Parametros,';',1).toFloat();
+         
         float volLiquido = volumenLiquido();
         float volAlcohol = volumenAlcohol();
         float temPLiquido = temperaturaLiquido();
@@ -132,78 +167,38 @@ void loop()
         Serial.println("volAlcohol: " + String(volAlcohol));
         Serial.println("temperaturaLiquido: " + String(temPLiquido));
         Serial.println("pwmLevel: " + String(pwmLevel));
+        Serial.println("Peso: " + String(Peso));
+        Serial.println("Sexo: " + String(Sexo));
         
-        
-        lcd.print("GHombre:" + String(gradHombre));
+        lcd.print("Hombre:" + String(gradHombre));
         delay(2000);
         lcd.clear();
-        lcd.print("GMujer:" + String(gradMujer));
+        
+        lcd.print("Mujer:" + String(gradMujer));
         delay(2000);
         lcd.clear();
+        
         lcd.print("Temperatura :" + String(temPLiquido));
         analogWrite(PinLedPWM,pwmLevel);
         delay(2000);
         lcd.clear();
-  }
-  else
-  {
-    lcd.print("Coloque la Tapa");
-    delay(100);
-  }
-  
-  /*
-  if (
-  Encendido = digitalRead(2);
-  
-  lcd.clear();
-  lcd.print("  Presione para");
-  lcd.setCursor(0,1);
-  lcd.print("      Medir");
-  
-  if (Encendido == HIGH)
-  {
-
-      lcd.clear();
-      lcd.print("  Calibrando...");
-      
-      Estable = false;
-      
-      while (Estable == false)
-      {
-        ADCMQ = analogRead(A0);
-        Serial.println(ADCMQ);
         
-        if (ADCMQ <= NivelEstableMQ3)
+        if (Sexo == "M")
         {
-          Estable = true;
+          ModBluetooth.print("RESPUESTA;" + String(gradHombre) + ";" + String(temPLiquido)); 
         }
-      }
-      
-      lcd.clear();
-      lcd.print("Coloque la tapa");
-      delay(10000);
-      
-      
-      lcd.clear();
-      lcd.print("  Midiendo...");
+        else
+        {
+          ModBluetooth.print("RESPUESTA;" + String(gradMujer) + ";" + String(temPLiquido)); 
+        }   
         
-    
-      for (int i = 0; i < 10; i ++)
-      {
-        int ADCMQ = analogRead(A0); //Lemos la salida analógica  del MQ
-        float Voltaje = (ADCMQ - NivelEstableMQ3) * (5.0 / 1023.0); //Convertimos la lectura en un valor de voltaje
-        float Rs=1000*((5-Voltaje)/Voltaje);  //Calculamos Rs con un RL de 1k
-        double Concentracion=0.4091*pow(Rs/5463, -1.497); // calculamos la concentración  de alcohol con la ecuación obtenida.
-        SumaConcentracion += Concentracion;
-        delay(1000);
-      }
-      
-      
-      lcd.clear();
-      lcd.print("Concentr:" + String(SumaConcentracion/10));
-      delay(10000);
-      */
-    
+        String Parametros  = ""; 
+    } 
+    else
+    {
+       lcd.print("Ingrese valores");
+       delay(100);
+    }
   }
 
 

@@ -13,35 +13,21 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity android:name=".ActivityConectar">
+        <activity android:name=".ParamActivity"></activity>
+        <activity android:name=".MainActivity"></activity>
+        <activity
+            android:name=".ActivityDos"
+            android:label="@string/title_activity_dos"
+            android:theme="@style/AppTheme" />
+        <activity
+            android:name=".SplashActivity"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar.FullScreen">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
-        <activity android:name=".PantallaPrincipal"></activity>
-        <activity android:name=".DispositivosBT"></activity>
-
-
-        <activity
-            android:name=".ActivityDos"
-            android:label="@string/title_activity_dos"
-            android:theme="@style/AppTheme" />
-
-        <receiver
-            android:name=".BCReceiver"
-            android:enabled="true"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.HEADSET_PLUG" />
-            </intent-filter>
-        </receiver>
-
-        <service
-            android:name=".PrimerServicio"
-            android:enabled="true"
-            android:exported="true"></service>
     </application>
 
 </manifest>

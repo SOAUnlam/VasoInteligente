@@ -21,17 +21,19 @@ void loop()
          
         VarChar = ModBluetooth.read(); 
          
-        if(VarChar == '1') 
+        if(VarChar == 'M') 
         { 
         digitalWrite(13, HIGH); 
+        digitalWrite(12, LOW);
         delay(100); 
         ModBluetooth.print("LED ENCENDIDO"); 
         Serial.print("LED ENCENDIDO"); 
         ModBluetooth.print("#"); 
         } 
-        if(VarChar == '8') 
+        if(VarChar == 'F') 
         { 
         digitalWrite(13, LOW); 
+        digitalWrite(12, HIGH);
         delay(100); 
         ModBluetooth.print("LED APAGADO#"); 
         Serial.print("LED APAGADO#"); 

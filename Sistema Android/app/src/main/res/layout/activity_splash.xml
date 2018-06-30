@@ -22,6 +22,6 @@
         android:gravity="center_horizontal"
         android:text="Vaso Inteligente"
         android:textAppearance="@style/TextAppearance.AppCompat.Body2"
-        android:textSize="30sp"
+        android:textSize="36sp"
         tools:layout_width="match_parent" />
 </LinearLayout>

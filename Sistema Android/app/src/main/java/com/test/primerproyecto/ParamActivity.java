@@ -22,15 +22,10 @@ public class ParamActivity extends AppCompatActivity implements View.OnClickList
 
     private EditText txtEstatura;
     private EditText txtPeso;
-    private Button btnCalcular,btnArrancar,btnDetener,btnThread;
-    private Button btnLlamar;
-    private Integer idThread=0;
+    private Button btnCalcular;
     private RadioButton rbMasculino;
     private RadioButton rbFemenino;
 
-    //------------------ BLUETOOTH -----------------------------------
-    //Button IdEncender, IdApagar,
-    //Button IdDesconectar;
     TextView IdBufferIn;
 
     //-------------------------------------------
@@ -40,11 +35,12 @@ public class ParamActivity extends AppCompatActivity implements View.OnClickList
     private BluetoothSocket btSocket = null;
     private StringBuilder DataStringIN = new StringBuilder();
     private BTThread MyConexionBT;
+
     // Identificador unico de servicio - SPP UUID
     private static final UUID BTMODULEUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+
     // String para la direccion MAC
-    private static String address = null;
-    //--------------------------------------------------
+    private static String macAddress = null;
 
 
 
@@ -63,29 +59,48 @@ public class ParamActivity extends AppCompatActivity implements View.OnClickList
         btnCalcular.setOnClickListener(this);
         rbMasculino.setOnClickListener(this);
         rbFemenino.setOnClickListener(this);
-        // --------- BLUETOOTH -----------
 
-        bluetoothIn = new Handler() {
-            public void handleMessage(android.os.Message msg) {
-                String readMessage = (String) msg.obj;
-                String[] separated = readMessage.split(";");
-                Log.i("INFORMACION",separated[0]);
 
-                if (separated[0].trim().equalsIgnoreCase("RESPUESTA"))
+
+        bluetoothIn = new Handler()
+        {
+            public void handleMessage(android.os.Message MensajeObject)
+            {
+                String Mensaje = (String) MensajeObject.obj;
+                String[] Respuesta = Mensaje.split(";");
+
+                if (Respuesta[0].trim().equalsIgnoreCase("RESPUESTA"))
                 {
-                    Log.i("INFORMACION","INGRESA");
-                    Log.i("INFORMACION",separated[1].trim());
-                    Intent ns = new Intent(ParamActivity.this,ActivityDos.class);
-                    ns.putExtra("RESULTADO",separated[1].trim());
-                    startActivity(ns);
+                    Log.i("MILIGRAMOS",Respuesta[1].trim());
+                    Log.i("TEMPERATURA",Respuesta[2].trim());
+                    Log.i("VOLUMEN",Respuesta[3].trim());
+                    Log.i("CCUBICOS",Respuesta[4].trim());
+                    Intent intentResultado = new Intent(ParamActivity.this,ResultActivity.class);
+                    intentResultado.putExtra("MILIGRAMOS",Respuesta[1].trim());
+                    intentResultado.putExtra("TEMPERATURA",Respuesta[2].trim());
+                    intentResultado.putExtra("VOLUMEN",Respuesta[3].trim());
+                    intentResultado.putExtra("CCUBICOS",Respuesta[4].trim());
+                    startActivity(intentResultado);
                 }
             }
 
         };
 
-        btAdapter = BluetoothAdapter.getDefaultAdapter(); // get Bluetooth adapter
-        VerificarEstadoBT();
 
+        btAdapter = BluetoothAdapter.getDefaultAdapter();
+
+        if(btAdapter==null)
+        {
+            Toast.makeText(getBaseContext(), "El dispositivo no soporta bluetooth", Toast.LENGTH_LONG).show();
+        }
+        else
+        {
+            if (!btAdapter.isEnabled())
+            {
+                Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+                startActivityForResult(enableBtIntent, 1);
+            }
+        }
 
     }
 
@@ -100,25 +115,21 @@ public class ParamActivity extends AppCompatActivity implements View.OnClickList
     {
         super.onResume();
 
-        //Consigue la direccion MAC desde DeviceListActivity via intent
-        Intent intent = getIntent();
+        /*OBTENGO EL DISPOSITIVO SELECCIONADO */
+        Intent intentMAC = getIntent();
+        macAddress = intentMAC.getStringExtra(MainActivity.EXTRA_DEVICE_ADDRESS);
+        BluetoothDevice BTDevice = btAdapter.getRemoteDevice(macAddress);
 
-        //Consigue la direccion MAC desde DeviceListActivity via EXTRA
-        address = intent.getStringExtra(MainActivity.EXTRA_DEVICE_ADDRESS);//<-<- PARTE A MODIFICAR >->->
-
-        //Setea la direccion MAC
-        BluetoothDevice device = btAdapter.getRemoteDevice(address);
-
+        /* CREO EL SOCKET PARA ENVIAR LOS DATOS  ME CONECTO E INICIO UN HILO PARA ESCRIBIR Y ESCUCHAR*/
         try
         {
-            btSocket = createBluetoothSocket(device);
+            btSocket = createBluetoothSocket(BTDevice);
         }
         catch (IOException e)
         {
             Toast.makeText(getBaseContext(), "La creacción del Socket fallo", Toast.LENGTH_LONG).show();
         }
 
-        // Establece la conexión con el socket Bluetooth.
         try
         {
             btSocket.connect();
@@ -132,12 +143,20 @@ public class ParamActivity extends AppCompatActivity implements View.OnClickList
             }
             catch (IOException ex)
             {
+                Toast.makeText(getBaseContext(), "No fue posible cerrar el socket" + e.getMessage(), Toast.LENGTH_LONG).show();
             }
-
         }
 
-        MyConexionBT = new BTThread(btSocket);
-        MyConexionBT.start();
+
+        try
+        {
+            MyConexionBT = new BTThread(btSocket);
+            MyConexionBT.start();
+        }
+        catch (Exception e)
+        {
+                Toast.makeText(getBaseContext(), "Error iniciar el servicio de comunicacion" + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
     }
 
     @Override
@@ -148,29 +167,12 @@ public class ParamActivity extends AppCompatActivity implements View.OnClickList
         {
             btSocket.close();
         }
-        catch (IOException e2)
+        catch (Exception e)
         {
 
         }
     }
 
-    //Comprueba que el dispositivo Bluetooth Bluetooth está disponible y solicita que se active si está desactivado
-    private void VerificarEstadoBT()
-    {
-
-        if(btAdapter==null)
-        {
-            Toast.makeText(getBaseContext(), "El dispositivo no soporta bluetooth", Toast.LENGTH_LONG).show();
-        }
-        else
-        {
-            if (!btAdapter.isEnabled())
-            {
-                Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-                startActivityForResult(enableBtIntent, 1);
-            }
-        }
-    }
 
     private class BTThread extends Thread
     {
@@ -181,6 +183,7 @@ public class ParamActivity extends AppCompatActivity implements View.OnClickList
         {
             InputStream tmpIn = null;
             OutputStream tmpOut = null;
+
             try
             {
                 tmpIn = socket.getInputStream();
@@ -211,16 +214,13 @@ public class ParamActivity extends AppCompatActivity implements View.OnClickList
                         bytes = mmInStream.read(buffer);
                         String readMessage = new String(buffer, 0, bytes);
 
-                        // Envia los datos obtenidos hacia el evento via handler
+                        /*ENVIO LA RESPUESTA AL HANDLER PARA QUE MANEJE EL MENSAJE*/
                         bluetoothIn.obtainMessage(handlerState, bytes, -1, readMessage).sendToTarget();
                     }
                     else
                     {
-                        SystemClock.sleep(500);
+                        SystemClock.sleep(1000);
                     }
-
-
-
                 }
                 catch (IOException e)
                 {
@@ -237,7 +237,6 @@ public class ParamActivity extends AppCompatActivity implements View.OnClickList
             }
             catch (IOException e)
             {
-                Log.i("INFO","Error escribiendo" + e.getMessage());
                 //si no es posible enviar datos se cierra la conexión
                 finish();
             }
@@ -246,7 +245,6 @@ public class ParamActivity extends AppCompatActivity implements View.OnClickList
 
 
     //Crea la clase que permite crear el evento de conexion
-
     public void onClick(View v)
     {
 

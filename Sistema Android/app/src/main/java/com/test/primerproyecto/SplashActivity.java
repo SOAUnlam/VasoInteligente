@@ -11,9 +11,10 @@ public class SplashActivity extends AppCompatActivity {
     private final int DURACION_SPLASH = 4000; // 3 segundos
 
     @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+    public void onCreate(Bundle savedInstanceState)
+    {
 
+        super.onCreate(savedInstanceState);
         // Tenemos una plantilla llamada splash.xml donde mostraremos la información que queramos (logotipo, etc.)
         setContentView(R.layout.activity_splash);
 

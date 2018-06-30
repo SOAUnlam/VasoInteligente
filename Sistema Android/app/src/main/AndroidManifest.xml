@@ -16,7 +16,7 @@
         <activity android:name=".ParamActivity"></activity>
         <activity android:name=".MainActivity"></activity>
         <activity
-            android:name=".ActivityDos"
+            android:name=".ResultActivity"
             android:label="@string/title_activity_dos"
             android:theme="@style/AppTheme" />
         <activity

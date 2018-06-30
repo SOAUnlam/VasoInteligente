@@ -107,13 +107,15 @@ public class MainActivity extends AppCompatActivity {
             String address = tvMAC.getText().toString();
 
             // Realiza un intent para iniciar la siguiente actividad
-            Intent intentPantallaPrincipal = new Intent(MainActivity.this, ParamActivity.class);//<-<- PARTE A MODIFICAR >->->
+            Intent intentPantallaPrincipal = new Intent(MainActivity.this, ParamActivity.class);
 
             //Le pasa a la actividad PantallaPrincipal la direccion del dispositivo BT
             intentPantallaPrincipal.putExtra(EXTRA_DEVICE_ADDRESS, address);
             startActivity(intentPantallaPrincipal);
         }
     };
+
+
 
 
 }

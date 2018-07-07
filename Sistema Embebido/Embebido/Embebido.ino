@@ -79,9 +79,10 @@ float volumenAlcohol()
       {
         float ValorSensor = analogRead(A0); //Lemos la salida analógica  del MQ
         SumaValor += ValorSensor;
+        Serial.print(ValorSensor);
         delay(200);
       }
-      
+
       float x = (SumaValor/10);
       float VolumenAlcohol = (analogRead(A0) - 80) * (0.277777777777);
       
@@ -162,7 +163,7 @@ void loop()
         
         
         float porcTemperatura = (temPLiquido + 55) * (0.55555555555555555) ;
-        int pwmLevel = (int)((porcTemperatura) * (2.56));
+        int pwmLevel = (int)((porcTemperatura) * (2.55));
         
         Serial.println("Medicion: " + String(analogRead(A0)));
         Serial.println("volLiquido: " + String(volLiquido));

@@ -46,6 +46,7 @@ public class ParamActivity extends AppCompatActivity  implements SensorEventList
     private BluetoothSocket btSocket = null;
     private static final UUID BTMODULEUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
     private static String macAddress = null;
+    private long UltimoUpdate = 0;
 
     /*HILO PARA SOCKET CON BLUETOOTH */
     private BTThread MyConexionBT;
@@ -111,11 +112,12 @@ public class ParamActivity extends AppCompatActivity  implements SensorEventList
 
                     float[] values = event.values;
 
-                        if ((Math.abs(values[0]) > ACC || Math.abs(values[1]) > ACC || Math.abs(values[2]) > ACC))
-                        {
-                            Log.i("SENSOR","ACELEROMETRO");
-                            MyConexionBT.write("SENSOR;      SHAKE     ;");
-                        }
+                    if ((Math.abs(values[0]) > ACC || Math.abs(values[1]) > ACC || Math.abs(values[2]) > ACC))
+                    {
+                        Log.i("SENSOR","ACELEROMETRO");
+                        MyConexionBT.write("SENSOR;      SHAKE     ;");
+                    }
+
 
                     break;
             }

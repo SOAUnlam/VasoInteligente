@@ -12,9 +12,6 @@ OneWire oneWireObjeto(pinDatosDQ);
 DallasTemperature sensorDS18B20(&oneWireObjeto);
 LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
 
-/*SENSOR MAGNETICO CIERRE TAPA, VARIABLES  */
-int SensorReed = LOW;
-
 /* PINES DIGITALES */
 const int PinEcho = 11;
 const int PinTrigger = 12;
@@ -27,9 +24,7 @@ const int Hmax = 8.7; //Desde base hasta ultima indicacion
 unsigned int tiempo;
 float diametro, area, radio, volumen,distancia_sensor_liquido,altura_liquido;
 
-/*VARIABLES MQ3*/
-float Peso = 75;
-
+/*FUNCION PARA SEPARAR VALORES RECIBIDOS DE ANDROID*/
 String getStringDelimitar(String data, char separator, int index)
 {
   int found = 0;
@@ -47,11 +42,14 @@ String getStringDelimitar(String data, char separator, int index)
   return found>index ? data.substring(strIndex[0], strIndex[1]) : "";
 }
 
+
+/*FUNCION PARA CALCULAR EL VOLUMEN DEL RECIPIENTE*/
 float volumenLiquido()
 {
   digitalWrite(PinTrigger, LOW);
   delayMicroseconds(2);
   digitalWrite(PinTrigger, HIGH);
+  
   // EL PULSO DURA AL MENOS 10 uS EN ESTADO ALTO
   delayMicroseconds(10);
   digitalWrite(PinTrigger, LOW);
@@ -71,6 +69,7 @@ float volumenLiquido()
   return volumen;
 }
 
+/* FUNCION PARA CALCULAR EL VOLUMEN DE ALCOHOL */
 float volumenAlcohol()
 {
      float SumaValor = 0;
@@ -88,6 +87,13 @@ float volumenAlcohol()
       
       return VolumenAlcohol;
 }
+/*FUNCION PARA EL CALCULO DE TEMPERATURA*/
+float temperaturaLiquido()
+{
+   sensorDS18B20.requestTemperatures();
+   return sensorDS18B20.getTempCByIndex(0);
+}
+
 
 
 void setup()
@@ -104,6 +110,8 @@ void setup()
   pinMode(PinLed, OUTPUT);
   pinMode(PinLedPWM, OUTPUT);
   
+  pinMode(2, OUTPUT);
+  
   /*INICIALIZACION SENSOR DE TEMPERATURA */
   sensorDS18B20.begin(); 
   
@@ -115,104 +123,112 @@ void setup()
    
   /*INICIALIZACION DISPLAY*/
   lcd.clear();
-  lcd.begin(16,2); // 2 filas y 16 columnas
+  lcd.begin(16,2); 
   lcd.print("Vaso Inteligente");
   delay(3000);
   lcd.clear();
   analogWrite(PinLedPWM,0);
 }
 
-float temperaturaLiquido()
-{
-   sensorDS18B20.requestTemperatures();
-   return sensorDS18B20.getTempCByIndex(0);
-}
 
 void loop() 
 {
   
-       /*PIN ENTRADA SWITCH ENCENDIDO*/
-      pinMode(2, INPUT);
-      SensorReed = digitalRead(2);
        
       lcd.clear();
+      
+      /* INICIALIZACION DEL LED DE TEMPERATURA */
       analogWrite(PinLedPWM,0);
-      /*PARAMETROS BLUETOOTH*/
+      
+      /*LECTURA PARAMETROS BLUETOOTH*/
       String Parametros  = ""; 
       while (ModBluetooth.available())
       {
         Parametros += (char)ModBluetooth.read();
       }
-    
-    
-   
-     if (Parametros != "")  
-     { 
-        
-        String Sexo = getStringDelimitar(Parametros,';',0);
-        Peso = getStringDelimitar(Parametros,';',1).toFloat();
-         
-        float volLiquido = volumenLiquido();
-        float volAlcohol = volumenAlcohol();
-        float temPLiquido = temperaturaLiquido();
-        
-        float grAlcohol = (volLiquido * volAlcohol * 0.79) / 100;
-        
-        float gradHombre = grAlcohol / (Peso * 0.7);
-        float gradMujer = grAlcohol / (Peso * 0.6);
-        
-        
-        float porcTemperatura = (temPLiquido + 55) * (0.55555555555555555) ;
-        int pwmLevel = (int)((porcTemperatura) * (2.55));
-        
-        Serial.println("Medicion: " + String(analogRead(A0)));
-        Serial.println("volLiquido: " + String(volLiquido));
-        Serial.println("volAlcohol: " + String(volAlcohol));
-        Serial.println("temperaturaLiquido: " + String(temPLiquido));
-        Serial.println("pwmLevel: " + String(pwmLevel));
-        Serial.println("Peso: " + String(Peso));
-        Serial.println("Sexo: " + String(Sexo));
-        
-        
-        /* DISPLAY GRADUACION*/
-        
-        lcd.setCursor(0, 0);
-        lcd.print("  Miligramos/L  ");
-        lcd.setCursor(0, 1);
-
-        if (Sexo == "M")
-        {
-          ModBluetooth.print("RESPUESTA;" + String(gradHombre) + ";" + String(temPLiquido)+ ";" + String(volAlcohol)+ ";" + String(volLiquido)); 
-          lcd.print("     " + String(gradHombre) + "mg     ");
-        }
-        else
-        {
-          ModBluetooth.print("RESPUESTA;" + String(gradMujer) + ";" + String(temPLiquido)+ ";" + String(volAlcohol)+ ";" + String(volLiquido)); 
-          lcd.print("     " + String(gradMujer) + "mg     ");
-        }   
-        
-        delay(4000);
-        lcd.clear();
-        
-        
-        /* DISPLAY TEMPERATURA*/
-        lcd.setCursor(0, 0);
-        lcd.print("  Temperatura  ");
-        lcd.setCursor(0, 1);
-        lcd.print("     " + String(temPLiquido) + " C     ");
-        
-        /*PWM NIVEL DE TEMPERATURA*/
-        analogWrite(PinLedPWM,pwmLevel);
-        delay(4000);
-        lcd.clear();
-        
-        String Parametros  = ""; 
-    } 
-    else
-    {
+      
+      /*SI SE RECIBE ALGO POR EL MODULO BLUETOOTH */
+      if (getStringDelimitar(Parametros,';',0) != "")
+      {
+           /*VERIFICO SI RECIBO DE ALGUN SENSOR DE ANDROID, SI ES ASI MUESTRO EL NOMBRE DEL SENSOR */
+           String sensoresSend = getStringDelimitar(Parametros,';',0);
+           if (sensoresSend == "SENSOR")  
+           { 
+                  lcd.clear();
+                  lcd.setCursor(0, 0);
+                  lcd.print(getStringDelimitar(Parametros,';',1));
+                  delay(4000);
+           }
+           else
+           {
+                  /* CASO CONTRARIO LEO LOS SENSORES PARA CALCULAR LA GRADUACION */
+                  String Sexo = getStringDelimitar(Parametros,';',0);
+                  float Peso = getStringDelimitar(Parametros,';',1).toFloat();
+                   
+                  /* CALCULO VOLUMEN LIQUIDO, ALCOHOL Y TEMPERATURA */
+                  float volLiquido = volumenLiquido();
+                  float volAlcohol = volumenAlcohol();
+                  float temPLiquido = temperaturaLiquido();
+                  
+                  /* CALCULO GRAMOS DE ALCOHOL */
+                  float grAlcohol = (volLiquido * volAlcohol * 0.79) / 100;
+                  
+                  /* CALCULO GRADUACION DE ALCOHOL */
+                  float gradHombre = grAlcohol / (Peso * 0.7);
+                  float gradMujer = grAlcohol / (Peso * 0.6);
+                  
+                  /* PORCENTAJE DE TEMPERATURA Y NIVEL PWM */
+                  float porcTemperatura = (temPLiquido + 55) * (0.55555555555555555) ;
+                  int pwmLevel = (int)((porcTemperatura) * (2.55));
+                  
+                  Serial.println("Medicion: " + String(analogRead(A0)));
+                  Serial.println("volLiquido: " + String(volLiquido));
+                  Serial.println("volAlcohol: " + String(volAlcohol));
+                  Serial.println("temperaturaLiquido: " + String(temPLiquido));
+                  Serial.println("pwmLevel: " + String(pwmLevel));
+                  Serial.println("Peso: " + String(Peso));
+                  Serial.println("Sexo: " + String(Sexo));
+                  
+                  
+                  /* DISPLAY GRADUACION*/
+                  lcd.setCursor(0, 0);
+                  lcd.print("  Miligramos/L  ");
+                  lcd.setCursor(0, 1);
+                  
+                  if (Sexo == "M")
+                  {
+                    ModBluetooth.print("RESPUESTA;" + String(gradHombre) + ";" + String(temPLiquido)+ ";" + String(volAlcohol)+ ";" + String(volLiquido)); 
+                    lcd.print("     " + String(gradHombre) + "mg     ");
+                  }
+                  else
+                  {
+                    ModBluetooth.print("RESPUESTA;" + String(gradMujer) + ";" + String(temPLiquido)+ ";" + String(volAlcohol)+ ";" + String(volLiquido)); 
+                    lcd.print("     " + String(gradMujer) + "mg     ");
+                  }   
+                  
+                  delay(4000);
+                  lcd.clear();
+                  
+                  
+                  /* DISPLAY TEMPERATURA*/
+                  lcd.setCursor(0, 0);
+                  lcd.print("  Temperatura  ");
+                  lcd.setCursor(0, 1);
+                  lcd.print("     " + String(temPLiquido) + " C     ");
+                  
+                  /*PWM NIVEL DE TEMPERATURA*/
+                  analogWrite(PinLedPWM,pwmLevel);
+                  delay(4000);
+                  lcd.clear();    
+          }
+          
+          String Parametros  = ""; 
+      }
+      else
+      {
        lcd.print("Ingrese valores");
        delay(1000);
-    }
+      }
   }
 
 

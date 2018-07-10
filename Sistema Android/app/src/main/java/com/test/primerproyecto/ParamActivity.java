@@ -3,6 +3,10 @@ package com.test.primerproyecto;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.os.Handler;
 import android.os.SystemClock;
 import android.support.v7.app.AppCompatActivity;
@@ -17,31 +21,35 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.UUID;
 
-public class ParamActivity extends AppCompatActivity implements View.OnClickListener
+public class ParamActivity extends AppCompatActivity  implements SensorEventListener,View.OnClickListener
 {
 
+    /* CONTROLES DE LA VISTA */
     private EditText txtEstatura;
     private EditText txtPeso;
     private Button btnCalcular;
     private RadioButton rbMasculino;
     private RadioButton rbFemenino;
+    private long LastUpdate = 0;
 
-    TextView IdBufferIn;
 
-    //-------------------------------------------
+    /*SENSORES ANDROID*/
+    private SensorManager mSensorManager;
+    private final static float ACC = 15;
+    private static final int SENSOR_SENSITIVITY = 4;
+
+
+    /* VARIABLES BLUETOOTH */
     Handler bluetoothIn;
     final int handlerState = 0;
     private BluetoothAdapter btAdapter = null;
     private BluetoothSocket btSocket = null;
-    private StringBuilder DataStringIN = new StringBuilder();
-    private BTThread MyConexionBT;
-
-    // Identificador unico de servicio - SPP UUID
     private static final UUID BTMODULEUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
-
-    // String para la direccion MAC
     private static String macAddress = null;
+    private long UltimoUpdate = 0;
 
+    /*HILO PARA SOCKET CON BLUETOOTH */
+    private BTThread MyConexionBT;
 
 
     @Override
@@ -49,6 +57,7 @@ public class ParamActivity extends AppCompatActivity implements View.OnClickList
     {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_pantalla_principal);
+
 
         txtEstatura = (EditText)findViewById(R.id.txtEstatura);
         txtPeso = (EditText)findViewById(R.id.txtPeso);
@@ -61,6 +70,102 @@ public class ParamActivity extends AppCompatActivity implements View.OnClickList
         rbFemenino.setOnClickListener(this);
 
 
+
+
+    }
+
+    public void onAccuracyChanged(Sensor sensor, int accuracy)
+    {
+
+    }
+
+    /*ESCUCHA Y ENVIO DE DATOS AL SISTEMA EMBEBIDO DEPENDIENDO DEL SENSOR*/
+    @Override
+    public void onSensorChanged(SensorEvent event)
+    {
+        synchronized (this) {
+            Log.d("sensor", event.sensor.getName());
+
+            switch (event.sensor.getType())
+            {
+                case Sensor.TYPE_PROXIMITY:
+                    if (event.values[0] >= -SENSOR_SENSITIVITY && event.values[0] <= SENSOR_SENSITIVITY)
+                    {
+                        Log.i("SENSOR","PROXIMIDAD");
+                        MyConexionBT.write("SENSOR;   PROXIMIDAD   ");
+                    }
+
+
+                    break;
+
+                case Sensor.TYPE_LIGHT:
+                    float[] values1 = event.values;
+                    if ((Math.abs(values1[0]) > 800))
+                    {
+                        Log.i("SENSOR","LUMINOSIDAD");
+                        MyConexionBT.write("SENSOR;  LUMINOSIDAD  ");
+                    }
+                    break;
+
+                case Sensor.TYPE_ACCELEROMETER:
+
+
+                    float[] values = event.values;
+
+                    if ((Math.abs(values[0]) > ACC || Math.abs(values[1]) > ACC || Math.abs(values[2]) > ACC))
+                    {
+                        Log.i("SENSOR","ACELEROMETRO");
+                        MyConexionBT.write("SENSOR;      SHAKE     ;");
+                    }
+
+
+                    break;
+            }
+        }
+
+    }
+
+
+    private BluetoothSocket createBluetoothSocket(BluetoothDevice device) throws IOException
+    {
+        return device.createRfcommSocketToServiceRecord(BTMODULEUUID);
+    }
+
+    private void registerSenser()
+    {
+        boolean done;
+        mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SensorManager.SENSOR_DELAY_NORMAL);
+        mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_LIGHT), SensorManager.SENSOR_DELAY_NORMAL);
+        mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY), SensorManager.SENSOR_DELAY_NORMAL);
+    }
+
+    private void unregisterSenser()
+    {
+        mSensorManager.unregisterListener(this);
+        Log.i("sensor", "unregister");
+    }
+
+
+    @Override
+    public void onResume()
+    {
+        super.onResume();
+
+        /* HABILITAR BLUETOOTH */
+        btAdapter = BluetoothAdapter.getDefaultAdapter();
+
+        if(btAdapter==null)
+        {
+            Toast.makeText(getBaseContext(), "El dispositivo no soporta bluetooth", Toast.LENGTH_LONG).show();
+        }
+        else
+        {
+            if (!btAdapter.isEnabled())
+            {
+                Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+                startActivityForResult(enableBtIntent, 1);
+            }
+        }
 
         bluetoothIn = new Handler()
         {
@@ -87,37 +192,21 @@ public class ParamActivity extends AppCompatActivity implements View.OnClickList
         };
 
 
-        btAdapter = BluetoothAdapter.getDefaultAdapter();
+        /*SERVICIO DE SENSORES*/
+        mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+        /*REGISTRO ESCUCHA DE SENSORES */
+        registerSenser();
 
-        if(btAdapter==null)
-        {
-            Toast.makeText(getBaseContext(), "El dispositivo no soporta bluetooth", Toast.LENGTH_LONG).show();
-        }
-        else
-        {
-            if (!btAdapter.isEnabled())
-            {
-                Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-                startActivityForResult(enableBtIntent, 1);
-            }
-        }
 
+
+        ConexionBluetooth();
     }
 
-    private BluetoothSocket createBluetoothSocket(BluetoothDevice device) throws IOException
+    public void ConexionBluetooth()
     {
-        return device.createRfcommSocketToServiceRecord(BTMODULEUUID);
-    }
-
-
-    @Override
-    public void onResume()
-    {
-        super.onResume();
-
-        /*OBTENGO EL DISPOSITIVO SELECCIONADO */
         Intent intentMAC = getIntent();
         macAddress = intentMAC.getStringExtra(MainActivity.EXTRA_DEVICE_ADDRESS);
+
         BluetoothDevice BTDevice = btAdapter.getRemoteDevice(macAddress);
 
         /* CREO EL SOCKET PARA ENVIAR LOS DATOS  ME CONECTO E INICIO UN HILO PARA ESCRIBIR Y ESCUCHAR*/
@@ -155,7 +244,7 @@ public class ParamActivity extends AppCompatActivity implements View.OnClickList
         }
         catch (Exception e)
         {
-                Toast.makeText(getBaseContext(), "Error iniciar el servicio de comunicacion" + e.getMessage(), Toast.LENGTH_LONG).show();
+            Toast.makeText(getBaseContext(), "Error iniciar el servicio de comunicacion" + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
@@ -163,13 +252,15 @@ public class ParamActivity extends AppCompatActivity implements View.OnClickList
     public void onPause()
     {
         super.onPause();
+
         try
         {
+            unregisterSenser();
             btSocket.close();
         }
-        catch (Exception e)
+        catch (IOException e2)
         {
-
+            //insert code to deal with this
         }
     }
 
@@ -234,10 +325,12 @@ public class ParamActivity extends AppCompatActivity implements View.OnClickList
             try
             {
                 mmOutStream.write(input.getBytes());
+                mmOutStream.flush();
             }
             catch (IOException e)
             {
                 //si no es posible enviar datos se cierra la conexión
+                Log.i("PROBLEMA",e.getMessage());
                 finish();
             }
         }

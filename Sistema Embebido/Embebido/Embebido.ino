@@ -83,7 +83,31 @@ float volumenAlcohol()
       }
 
       float x = (SumaValor/10);
-      float VolumenAlcohol = (analogRead(A0) - 80) * (0.277777777777);
+      float VolumenAlcohol = 0;
+      
+      if (x <= 290) //RECTA 1
+      {
+         VolumenAlcohol = (x - 130) * (0.03125);
+      }
+      else
+      {
+        if (x > 290  && x <= 320) //RECTA 2
+        {
+           VolumenAlcohol = (x - 290) * (0.3) + 5;
+        }
+        else
+        {
+          if (x > 430) //TOPE MAXIMO DE ETANOL
+          {
+             x = 430;
+          }
+          
+          VolumenAlcohol = (x - 320) * (0.78181818) + 14; //RECTA 3
+        }
+         
+      }
+      
+      
       
       return VolumenAlcohol;
 }
@@ -133,8 +157,9 @@ void setup()
 
 void loop() 
 {
-  
-       
+     int adc_MQ = analogRead(A0); //Lemos la salida analógica del MQ
+    float voltaje = adc_MQ * (5.0 / 1023.0); //
+       Serial.println(adc_MQ);
       lcd.clear();
       
       /* INICIALIZACION DEL LED DE TEMPERATURA */
@@ -176,6 +201,31 @@ void loop()
                   /* CALCULO GRADUACION DE ALCOHOL */
                   float gradHombre = grAlcohol / (Peso * 0.7);
                   float gradMujer = grAlcohol / (Peso * 0.6);
+                  
+                  if (gradHombre < 0)
+                  {
+                    gradHombre=0;
+                  }
+                  
+                  if (gradMujer < 0)
+                  {
+                    gradMujer=0;
+                  }
+                  
+                  if (volLiquido < 0)
+                  {
+                    volLiquido = 0;
+                  }
+                  
+                  if (volAlcohol < 0)
+                  {
+                    volAlcohol = 0;
+                  }
+                  
+                  if (volLiquido < 0)
+                  {
+                    volLiquido = 0;
+                  }
                   
                   /* PORCENTAJE DE TEMPERATURA Y NIVEL PWM */
                   float porcTemperatura = (temPLiquido + 55) * (0.55555555555555555) ;
